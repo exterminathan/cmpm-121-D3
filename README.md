@@ -1,6 +1,4 @@
-# cmpm-121-demo-3
+# CMPM 121 DEMO 3
 
-This is the default `README.md` file for the D3 projects. If the student is
-aware of what's going on in their project, they should immediately replace this
-with something more descriptive. It sure would be embarrassing if they forgot to
-do that...
+It definitely would be embarassing if I forgot to change this, but luckily I didn't.
+This is CMPM 121 Demo 3. Uhhh.... this is a geocoin map location game thing, I guess this is descriptive enough.
