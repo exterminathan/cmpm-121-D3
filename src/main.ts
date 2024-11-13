@@ -1,3 +1,5 @@
+// ~------------------INTRO SETUP----------------~
+
 // @deno-types="npm:@types/leaflet@^1.9.14"
 import leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -8,6 +10,25 @@ import luck from "./luck.ts";
 //wasnt getting unique generations
 //source: Brace
 const seed = Date.now().toString();
+
+//TO-DO
+////empty for now
+//fix css for buttons and inv
+
+// ~------------------INTERFACES-----------------~
+
+interface Cell {
+  readonly i: number;
+  readonly j: number;
+}
+
+interface Coin {
+  readonly i: number;
+  readonly j: number;
+  readonly serial: number;
+}
+
+// ~-------------------VARIABLES-----------------~
 
 // Player Location
 const PLAYER_LOCATION = leaflet.latLng(36.9895, -122.0627777);
@@ -36,60 +57,106 @@ leaflet
 const playerIcon = leaflet.marker(PLAYER_LOCATION).addTo(map);
 playerIcon.bindTooltip("Player's Location");
 
-let playerInv = 0;
+//Player inventory management and panel
+const playerInv: Coin[] = [];
 const invPanel = document.querySelector<HTMLDivElement>("#inventory")!;
 
 // Update inventory display
 updateInventoryDisplay();
 
-const cacheData = new Map<string, number>();
+//map for coins in caches
+const cacheCoins = new Map<string, Coin[]>();
 
-function createCache(x: number, y: number) {
-  const cacheLat = PLAYER_LOCATION.lat + x * GRID_CELL_SIZE;
-  const cacheLng = PLAYER_LOCATION.lng + y * GRID_CELL_SIZE;
+//map for known cells (flyweight)
+const knownCells = new Map<string, Cell>();
+
+// ~------------------FUNCTIONS------------------~
+
+function getCanonicalCell(i: number, j: number): Cell {
+  const key = `${i},${j}`;
+  if (!knownCells.has(key)) {
+    knownCells.set(key, { i, j });
+  }
+
+  return knownCells.get(key)!;
+}
+
+function latLngToCell(latLng: leaflet.LatLng): Cell {
+  const i = Math.floor(latLng.lat / GRID_CELL_SIZE);
+  const j = Math.floor(latLng.lng / GRID_CELL_SIZE);
+
+  return getCanonicalCell(i, j);
+}
+
+//Create Cache
+function createCache(cell: Cell) {
+  const cacheLat = cell.i * GRID_CELL_SIZE;
+  const cacheLng = cell.j * GRID_CELL_SIZE;
   const bounds = leaflet.latLngBounds([
     [cacheLat, cacheLng],
     [cacheLat + GRID_CELL_SIZE, cacheLng + GRID_CELL_SIZE],
   ]);
 
   const cacheRect = leaflet.rectangle(bounds).addTo(map);
-  const cacheKey = `${x},${y}`;
-  const initCoins = Math.floor(luck(`${cacheKey}:coins`) * 10) + 1;
+  const cacheKey = `${cell.i},${cell.j}`;
 
-  cacheData.set(cacheKey, initCoins);
+  const numCoins = Math.floor(luck(`${cell.i},${cell.j}:coins`) * 10) + 1;
+  const coins: Coin[] = [];
 
-  cacheRect.bindPopup(() => createCachePopup(cacheKey));
+  for (let serial = 0; serial < numCoins; serial++) {
+    coins.push({ i: cell.i, j: cell.j, serial });
+  }
+  cacheCoins.set(cacheKey, coins);
+
+  cacheRect.bindPopup(() => createCachePopup(cell));
 }
 
-function createCachePopup(cacheKey: string) {
-  const coinCount = cacheData.get(cacheKey)!;
+//Create Cache Popup
+function createCachePopup(cell: Cell) {
+  const cacheKey = `${cell.i},${cell.j}`;
+  const coins = cacheCoins.get(cacheKey)!;
+
   const content = document.createElement("div");
   content.innerHTML = `
-    <div>This Cache is at ${cacheKey} and has <span id="coinCount">${coinCount}</span> coins</div>
-    <br/>
-    <button id="collectBtn">Collect</button>
-    <br/>
-    <button id="depositBtn">Deposit</button>`;
+    <div>This cache at ${cacheKey} has <span id="coinCount">${coins.length}</span> coins:</div>
+    <ul id="cacheCoinsList"></ul>
+    <div class="popup-button-container">
+      <button id="collectBtn">Collect</button>
+      <button id="depositBtn">Deposit</button>
+    </div>`;
+
+  const cacheCoinsList = content.querySelector<HTMLUListElement>(
+    "#cacheCoinsList",
+  )!;
+  coins.forEach((coin) => {
+    const listItem = document.createElement("li");
+    listItem.textContent = `${coin.i}:${coin.j}#${coin.serial}`;
+    cacheCoinsList.appendChild(listItem);
+  });
 
   content.querySelector<HTMLButtonElement>("#collectBtn")!.onclick = () => {
-    if (cacheData.get(cacheKey)! > 0) {
-      coinChange(cacheKey, -1);
-      playerInv++;
+    if (coins.length > 0) {
+      const coin = coins.pop()!;
+      playerInv.push(coin);
       updateInventoryDisplay();
-      content.querySelector<HTMLSpanElement>("#coinCount")!.textContent =
-        cacheData.get(cacheKey)!.toString();
+      cacheCoinsList.removeChild(cacheCoinsList.lastChild!);
+      content.querySelector<HTMLSpanElement>("#coinCount")!.textContent = coins
+        .length.toString();
     } else {
-      alert("No coins!");
+      alert("No coins left to collect!");
     }
   };
 
   content.querySelector<HTMLButtonElement>("#depositBtn")!.onclick = () => {
-    if (playerInv > 0) {
-      coinChange(cacheKey, 1);
-      playerInv--;
+    if (playerInv.length > 0) {
+      const coin = playerInv.pop()!;
+      coins.push(coin);
       updateInventoryDisplay();
-      content.querySelector<HTMLSpanElement>("#coinCount")!.textContent =
-        cacheData.get(cacheKey)!.toString();
+      const listItem = document.createElement("li");
+      listItem.textContent = `${coin.i}:${coin.j}#${coin.serial}`;
+      cacheCoinsList.appendChild(listItem);
+      content.querySelector<HTMLSpanElement>("#coinCount")!.textContent = coins
+        .length.toString();
     } else {
       alert("No coins to deposit!");
     }
@@ -98,19 +165,37 @@ function createCachePopup(cacheKey: string) {
   return content;
 }
 
-function coinChange(cacheKey: string, amt: number) {
-  const currCoins = cacheData.get(cacheKey)!;
-  cacheData.set(cacheKey, currCoins + amt);
+//Update inventory panel
+function updateInventoryDisplay() {
+  invPanel.textContent = "Inventory:";
+  const totalCoins = document.createElement("div");
+  totalCoins.textContent = `Total Coins: ${playerInv.length}`;
+
+  if (playerInv.length === 0) {
+    invPanel.textContent += " (empty)";
+  } else {
+    invPanel.appendChild(totalCoins);
+
+    const list = document.createElement("ul");
+    playerInv.forEach((coin) => {
+      const listItem = document.createElement("li");
+      listItem.textContent = `${coin.i}:${coin.j}#${coin.serial}`;
+      list.appendChild(listItem);
+    });
+    invPanel.appendChild(list);
+  }
 }
 
-function updateInventoryDisplay() {
-  invPanel.textContent = `Inventory: ${playerInv} coins`;
-}
+// ~------------------INITIALIZATION-------------~
+
+//Create coins
+const playerCell = latLngToCell(PLAYER_LOCATION);
 
 for (let x = -CACHE_RADIUS; x <= CACHE_RADIUS; x++) {
   for (let y = -CACHE_RADIUS; y <= CACHE_RADIUS; y++) {
-    if (luck(`${seed}:${x},${y}`) <= CACHE_PROBABILITY) {
-      createCache(x, y);
+    const cell = getCanonicalCell(playerCell.i + x, playerCell.j + y);
+    if (luck(`${seed}:${cell.i},${cell.j}`) <= CACHE_PROBABILITY) {
+      createCache(cell);
     }
   }
 }
