@@ -12,7 +12,6 @@
       "dom"
     ]
   },
-  "include": ["./**/*.ts", "./declarations.d.ts"],
   "imports": {
     "geojson": "npm:geojson@^0.5.0",
     "leaflet": "npm:leaflet@^1.9.4",
