@@ -2,21 +2,21 @@
 
 @font-face {
   font-family: "SourGummy";
-  src: url("./src/assets/SourGummy1.ttf") format("truetype");
+  src: url("/assets/SourGummy1.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
   font-family: "PoppinsRegular";
-  src: url("./src/assets/Poppins-Regular.ttf") format("truetype");
+  src: url("/assets/Poppins-Regular.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
   font-family: "PoppinsBold";
-  src: url("./src/assets/Poppins-SemiBold.ttf") format("truetype");
+  src: url("/assets/Poppins-SemiBold.ttf") format("truetype");
   font-weight: normal;
   font-style: normal;
 }

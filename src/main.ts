@@ -58,7 +58,7 @@ leaflet
 
 //custom player icon
 const playerIconCustom = leaflet.icon({
-  iconUrl: `./src/assets/locIcon.png`,
+  iconUrl: `/assets/location.png`,
   iconSize: [35, 49],
   iconAnchor: [17.5, 24.5],
   popupAnchor: [0, -24.5],
@@ -92,21 +92,21 @@ let visibleCacheKeys = new Set<string>();
 
 // custom geocache icons
 const geocacheIconSmall = leaflet.icon({
-  iconUrl: `./src/assets/marker64.png`,
+  iconUrl: `/assets/marker64.png`,
   iconSize: [24, 24],
   iconAnchor: [12, 12],
   popupAnchor: [0, -12],
 });
 
 const geocacheIconMed = leaflet.icon({
-  iconUrl: `./src/assets/marker64.png`,
+  iconUrl: `/assets/marker64.png`,
   iconSize: [32, 32],
   iconAnchor: [16, 16],
   popupAnchor: [0, -16],
 });
 
 const geocacheIconLarge = leaflet.icon({
-  iconUrl: `./src/assets/marker64.png`,
+  iconUrl: `/assets/marker64.png`,
   iconSize: [40, 40],
   iconAnchor: [20, 20],
   popupAnchor: [0, -20],
