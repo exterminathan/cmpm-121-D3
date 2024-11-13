@@ -7,8 +7,11 @@ import "./style.css";
 import "./leafletWorkaround.ts";
 import luck from "./luck.ts";
 
+//Source image imports
+
 // @ts-ignore <it literally won't work without this>
 import playerIconImage from "../assets/location.png";
+
 // @ts-ignore <it literally won't work without this>
 import markerIconImage from "../assets/marker64.png";
 
