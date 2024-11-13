@@ -52,6 +52,7 @@ const map = leaflet.map("map", {
 });
 
 //custom dark map
+//had to approve github.io domain in stadiamaps dev console
 leaflet
   .tileLayer(
     "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
