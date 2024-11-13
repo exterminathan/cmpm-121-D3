@@ -7,6 +7,11 @@ import "./style.css";
 import "./leafletWorkaround.ts";
 import luck from "./luck.ts";
 
+// @ts-ignore <it literally won't work without this>
+import playerIconImage from "../assets/location.png";
+// @ts-ignore <it literally won't work without this>
+import markerIconImage from "../assets/marker64.png";
+
 //wasnt getting unique generations
 //source: Brace
 const seed = Date.now().toString();
@@ -58,7 +63,7 @@ leaflet
 
 //custom player icon
 const playerIconCustom = leaflet.icon({
-  iconUrl: `/assets/location.png`,
+  iconUrl: playerIconImage,
   iconSize: [35, 49],
   iconAnchor: [17.5, 24.5],
   popupAnchor: [0, -24.5],
@@ -75,6 +80,28 @@ playerIcon.bindTooltip("Player's Location");
 const playerInv: Coin[] = [];
 const invPanel = document.querySelector<HTMLDivElement>("#inventory")!;
 
+// custom geocache icons
+const geocacheIconSmall = leaflet.icon({
+  iconUrl: markerIconImage,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -12],
+});
+
+const geocacheIconMed = leaflet.icon({
+  iconUrl: markerIconImage,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+  popupAnchor: [0, -16],
+});
+
+const geocacheIconLarge = leaflet.icon({
+  iconUrl: markerIconImage,
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
+  popupAnchor: [0, -20],
+});
+
 // Update inventory display
 updateInventoryDisplay();
 
@@ -89,28 +116,6 @@ const cacheMarkers = new Map<string, leaflet.Marker>();
 
 //set of visible cache keys
 let visibleCacheKeys = new Set<string>();
-
-// custom geocache icons
-const geocacheIconSmall = leaflet.icon({
-  iconUrl: `/assets/marker64.png`,
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-  popupAnchor: [0, -12],
-});
-
-const geocacheIconMed = leaflet.icon({
-  iconUrl: `/assets/marker64.png`,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-  popupAnchor: [0, -16],
-});
-
-const geocacheIconLarge = leaflet.icon({
-  iconUrl: `/assets/marker64.png`,
-  iconSize: [40, 40],
-  iconAnchor: [20, 20],
-  popupAnchor: [0, -20],
-});
 
 // ~------------------FUNCTIONS------------------~
 
