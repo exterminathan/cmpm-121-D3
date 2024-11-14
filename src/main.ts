@@ -128,6 +128,9 @@ const cacheMarkers = new Map<string, leaflet.Marker>();
 //set of visible cache keys
 let visibleCacheKeys = new Set<string>();
 
+//Initial DPad visibility state
+let isDPadVisible = true;
+
 // ~------------------FUNCTIONS------------------~
 
 function getCanonicalCell(i: number, j: number): Cell {
@@ -205,6 +208,7 @@ function createCachePopup(cell: Cell) {
   const collectBtn = document.createElement("button");
   collectBtn.textContent = "Collect";
   collectBtn.className = "collect-deposit-btn";
+
   collectBtn.onclick = () => {
     if (coins.length > 0) {
       const coin = coins.pop()!;
@@ -215,7 +219,7 @@ function createCachePopup(cell: Cell) {
         .length.toString();
       saveGameState();
     } else {
-      alert("No coins left to collect!");
+      createNotification("No coins left to collect!");
     }
   };
 
@@ -223,6 +227,7 @@ function createCachePopup(cell: Cell) {
   const depositBtn = document.createElement("button");
   depositBtn.textContent = "Deposit";
   depositBtn.className = "collect-deposit-btn";
+
   depositBtn.onclick = () => {
     if (playerInv.length > 0) {
       const coin = playerInv.pop()!;
@@ -235,7 +240,7 @@ function createCachePopup(cell: Cell) {
         .length.toString();
       saveGameState();
     } else {
-      alert("No coins to deposit!");
+      createNotification("No coins to deposit!");
     }
   };
 
@@ -340,6 +345,8 @@ function generateCaches() {
   }
 
   visibleCacheKeys = newCacheKeys;
+
+  map.invalidateSize();
 }
 
 // move player
@@ -402,16 +409,23 @@ function stopGeolocation() {
 }
 
 function toggleDPadVisibility(show: boolean) {
-  const dpadButtons = document.querySelectorAll(
-    "#moveNorth, #moveSouth, #moveEast, #moveWest",
-  );
-  dpadButtons.forEach((button) => {
-    (button as HTMLElement).style.display = show ? "block" : "none";
-  });
+  const dpadButtons = document.getElementById("dpadButtons")!;
+  if (show) {
+    dpadButtons.style.visibility = "visible";
+  } else {
+    dpadButtons.style.visibility = "hidden";
+  }
 }
 
 function resetGameState() {
   stopGeolocation();
+
+  //reset gelocation button appearance
+  const geoButton = document.getElementById("geoButton")!;
+  geoButton.textContent = "🌐";
+  geoButton.style.color = "";
+
+  toggleDPadVisibility(true);
 
   playerLocation = leaflet.latLng(36.9895, -122.0627777);
 
@@ -435,12 +449,74 @@ function resetGameState() {
   visibleCacheKeys.clear();
 
   playerIcon.setLatLng(playerLocation);
+  map.panTo(playerLocation);
 
   generateCaches();
 
   updateInventoryDisplay();
 
   localStorage.removeItem("geocoinGameState");
+
+  map.invalidateSize();
+}
+
+// ~---------NOTIFICATION FUNCTIONS--------------~
+
+function createInteractiveNotification(
+  message: string,
+  onConfirm: () => void,
+  onCancel: () => void,
+) {
+  const notification = document.createElement("div");
+  notification.className = "interactive-notification";
+  notification.innerHTML = `
+    <p>${message}</p>
+    <div class="notification-buttons">
+      <button id="confirmButton">Confirm</button>
+      <button id="cancelButton">Cancel</button>
+    </div>
+  `;
+
+  document.body.appendChild(notification);
+
+  const confirmBtn = notification.querySelector<HTMLButtonElement>(
+    "#confirmButton",
+  )!;
+  const cancelBtn = notification.querySelector<HTMLButtonElement>(
+    "#cancelButton",
+  )!;
+
+  confirmBtn.onclick = () => {
+    onConfirm();
+    closeNotification(notification);
+  };
+
+  cancelBtn.onclick = () => {
+    onCancel();
+    closeNotification(notification);
+  };
+}
+
+function createNotification(message: string) {
+  const notification = document.createElement("div");
+  notification.className = "notification";
+  notification.textContent = message;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.classList.add("fade-out");
+    setTimeout(() => {
+      document.body.removeChild(notification);
+    }, 1000);
+  }, 2000);
+}
+
+function closeNotification(notification: HTMLElement) {
+  notification.classList.add("fade-out");
+  setTimeout(() => {
+    document.body.removeChild(notification);
+  }, 1000);
 }
 
 // ~---------------GAME SAVING-------------------~
@@ -488,7 +564,7 @@ function loadGameState() {
     }
 
     // Restore player inventory
-    playerInv.length = 0; // Clear current inventory
+    playerInv.length = 0;
     gameState.playerInv.forEach((coin: Coin) => {
       playerInv.push(coin);
     });
@@ -503,7 +579,20 @@ function loadGameState() {
     playerIcon.setLatLng(playerLocation);
     map.panTo(playerLocation);
 
-    generateCaches(); // Regenerate caches based on restored state
+    const playerCell = latLngToCell(playerLocation);
+    cacheCoins.forEach((_, cacheKey) => {
+      const [i, j] = cacheKey.split(",").map(Number);
+      const cell = getCanonicalCell(i, j);
+
+      if (
+        Math.abs(cell.i - playerCell.i) <= CACHE_RADIUS &&
+        Math.abs(cell.j - playerCell.j) <= CACHE_RADIUS
+      ) {
+        createCache(cell);
+      }
+    });
+  } else {
+    generateCaches();
   }
 }
 
@@ -513,8 +602,6 @@ loadGameState();
 if (movementHist.length === 0) {
   movementHist.push(playerLocation);
 }
-
-generateCaches();
 
 // ~-------------------LISTENERS-----------------~
 const northButton = document.getElementById("moveNorth")!;
@@ -534,20 +621,43 @@ const resetButton = document.getElementById("resetButton")!;
 geoButton.addEventListener("click", () => {
   if (geoWatchID === null) {
     startGeolocation();
-    geoButton.textContent = "🌐 (on)";
-    // Optionally hide direction buttons
+    geoButton.textContent = "🌐 (ON)";
+    geoButton.style.color = "white";
     toggleDPadVisibility(false);
   } else {
     stopGeolocation();
     geoButton.textContent = "🌐";
-    // Show direction buttons
+    geoButton.style.color = "";
     toggleDPadVisibility(true);
   }
 });
 
 resetButton.addEventListener("click", () => {
-  const confirmed = confirm("Are you sure you want to reset the game state?");
-  if (confirmed) {
-    resetGameState();
+  createInteractiveNotification(
+    "Are you sure you want to reset the game state?",
+    () => {
+      resetGameState();
+      createNotification("Game reset successfully!");
+    },
+    () => {
+      createNotification("Reset canceled.");
+    },
+  );
+});
+
+const toggleDPadButton = document.getElementById("toggleDPad")!;
+toggleDPadButton.addEventListener("click", () => {
+  isDPadVisible = !isDPadVisible;
+  toggleDPadVisibility(isDPadVisible);
+});
+
+// doesn't work though, button is currently disabled
+const resetLocationButton = document.getElementById("resetLocation")!;
+resetLocationButton.addEventListener("click", () => {
+  if (playerLocation) {
+    map.setView(playerLocation, ZOOM);
+    createNotification("Map centered on player!");
+  } else {
+    createNotification("Player location not available.");
   }
 });

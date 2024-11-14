@@ -79,15 +79,16 @@ h1 {
   position: absolute;
   bottom: 20px;
   right: 20px;
-  width: 250px;
-  max-height: 150px;
-  background-color: rgba(0, 0, 0, 0.7);
+  width: 300px;
+  max-height: 175px;
+  background-color: #646cff;
   color: #fff;
   border-radius: 8px;
   padding: 0;
   overflow: hidden;
   border: 1px solid #646cff;
-  font-size: 1em;
+  font-family: "PoppinsRegular" sans-serif;
+  font-size: 1.1em;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   z-index: 2;
   display: flex;
@@ -166,7 +167,7 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-/* ~------------------DPAD BUTTON STYLES----------------~ */
+/* ~------------------CONTROL PANEL STYLES----------------~ */
 
 #controlPanel {
   position: absolute;
@@ -177,24 +178,17 @@ button:focus-visible {
 
 .button-row {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   margin-bottom: 5px;
+  background-color: #646cff;
+  width: 200px;
+  color: #fff;
+  margin: 0;
+  border-radius: 8px;
 }
 
 .button-row button {
-  margin: 0 5px;
-}
-
-.dpad-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.dpad-middle-row {
-  display: flex;
-  justify-content: center;
-  width: 100%;
+  margin: 0;
 }
 
 #controlPanel button {
@@ -215,15 +209,113 @@ button:focus-visible {
   border-color: transparent;
 }
 
+#controlPanel button.hidden {
+  display: none;
+}
+
 .invisible-button {
   visibility: hidden;
   width: 2.5em;
   padding: 0.5em 0.7em;
 }
 
-/* Hide direction buttons when needed */
-#controlPanel button.hidden {
-  display: none;
+.dpad-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #ffcc00;
+  width: 180px;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+.dpad-middle-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+#geoButton {
+  color: inherit;
+}
+
+#geoButton:contains("🌐 (on)") {
+  color: white;
+}
+
+/* ~------------------NOTIFICATION STYLES-----------------~ */
+
+.notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #646cff;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-family: PoppinsBold, sans-serif;
+  font-size: 1em;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
+}
+
+.notification.fade-out {
+  opacity: 0;
+}
+
+.interactive-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #ffcc00;
+  color: #000;
+  padding: 15px 20px;
+  border-radius: 8px;
+  font-family: PoppinsBold, sans-serif;
+  font-size: 1em;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  z-index: 10000;
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
+}
+
+.interactive-notification.fade-out {
+  opacity: 0;
+}
+
+.interactive-notification p {
+  margin: 0 0 10px;
+}
+
+.notification-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.notification-buttons button {
+  border-radius: 5px;
+  border: none;
+  padding: 5px 10px;
+  font-size: 0.9em;
+  cursor: pointer;
+  background-color: #646cff;
+  color: #fff;
+}
+
+.notification-buttons button:hover {
+  background-color: #535bf2;
+}
+
+#resetLocation {
+  font-size: 3em;
+  font-weight: bold;
+  visibility: hidden;
 }
 
 /* ~------------------POPUP CONTENT STYLES----------------~ */
@@ -295,4 +387,8 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+.leaflet-control-attribution {
+  display: inline;
 }

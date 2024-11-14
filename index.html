@@ -11,26 +11,25 @@
           <button id="geoButton">🌐</button>
           <button id="resetButton">🚮</button>
         </div>
-        <div class="dpad-container">
+        <div id="dpadButtons" class="dpad-container">
           <button id="moveNorth">⬆️</button>
           <div class="dpad-middle-row">
             <button id="moveWest">⬅️</button>
-            <button class="invisible-button"></button>
+            <button id="resetLocation"></button> 
             <button id="moveEast">➡️</button>
           </div>
           <button id="moveSouth">⬇️</button>
         </div>
       </div>
       
-      
       <div id="map"></div>
       <div id="inventory">
-  <div id="inventoryHeader">
-    <div>Inventory:</div>
-    <div id="totalCoins">Total Coins: 0</div>
-  </div>
-  <ul id="coinList"></ul>
-</div>
+        <div id="inventoryHeader">
+          <div>Inventory:</div>
+          <div id="totalCoins">Total Coins: 0</div>
+        </div>
+        <ul id="coinList"></ul>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
