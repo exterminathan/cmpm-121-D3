@@ -12,7 +12,7 @@ import luck from "./luck.ts";
 // @ts-ignore <it literally won't work without this>
 import playerIconImage from "../assets/location.png";
 
-// @ts-ignore <it literally won't work without this>
+// @ts-ignore <it literally won't work without this again>
 import markerIconImage from "../assets/marker64.png";
 
 //wasnt getting unique generations
@@ -69,7 +69,7 @@ leaflet
 const playerIconCustom = leaflet.icon({
   iconUrl: playerIconImage,
   iconSize: [35, 49],
-  iconAnchor: [17.5, 24.5],
+  iconAnchor: [17.5, 49],
   popupAnchor: [0, -24.5],
 });
 
@@ -106,11 +106,18 @@ const geocacheIconLarge = leaflet.icon({
   popupAnchor: [0, -20],
 });
 
+// gelocation tracker
+let geoWatchID: number | null = null;
+
+let movementHist: leaflet.LatLng[] = [];
+
+let movementPolyline: leaflet.Polyline | null = null;
+
 // Update inventory display
 updateInventoryDisplay();
 
 //map for coins in caches
-const cacheCoins = new Map<string, Coin[]>();
+let cacheCoins = new Map<string, Coin[]>();
 
 //map for known cells (flyweight)
 const knownCells = new Map<string, Cell>();
@@ -206,6 +213,7 @@ function createCachePopup(cell: Cell) {
       cacheCoinsList.removeChild(cacheCoinsList.lastChild!);
       content.querySelector<HTMLSpanElement>("#coinCount")!.textContent = coins
         .length.toString();
+      saveGameState();
     } else {
       alert("No coins left to collect!");
     }
@@ -225,6 +233,7 @@ function createCachePopup(cell: Cell) {
       cacheCoinsList.appendChild(listItem);
       content.querySelector<HTMLSpanElement>("#coinCount")!.textContent = coins
         .length.toString();
+      saveGameState();
     } else {
       alert("No coins to deposit!");
     }
@@ -271,6 +280,25 @@ function updateInventoryDisplay() {
     playerInv.forEach((coin) => {
       const listItem = document.createElement("li");
       listItem.textContent = `${coin.i}:${coin.j}#${coin.serial}`;
+
+      //special stuff
+      listItem.style.cursor = "pointer";
+      listItem.onclick = () => {
+        const cacheLat = coin.i * GRID_CELL_SIZE;
+        const cacheLng = coin.j * GRID_CELL_SIZE;
+        const cacheLatLng = leaflet.latLng(cacheLat, cacheLng);
+        map.setView(cacheLatLng, ZOOM);
+
+        const cacheKey = `${coin.i},${coin.j}`;
+        if (cacheMarkers.has(cacheKey)) {
+          cacheMarkers.get(cacheKey)!.openPopup();
+        } else {
+          const cell = getCanonicalCell(coin.i, coin.j);
+          createCache(cell);
+          cacheMarkers.get(cacheKey)!.openPopup();
+        }
+      };
+
       list.appendChild(listItem);
     });
     listContainer.appendChild(list);
@@ -290,7 +318,10 @@ function generateCaches() {
       const cell = getCanonicalCell(playerLoc.i + x, playerLoc.j + y);
       const cacheKey = `${cell.i},${cell.j}`;
 
-      if (luck(`${seed}:${cell.i},${cell.j}`) <= CACHE_PROBABILITY) {
+      if (cacheCoins.has(cacheKey)) {
+        createCache(cell);
+        newCacheKeys.add(cacheKey);
+      } else if (luck(`${seed}:${cell.i},${cell.j}`) <= CACHE_PROBABILITY) {
         createCache(cell);
         newCacheKeys.add(cacheKey);
       }
@@ -313,17 +344,176 @@ function generateCaches() {
 
 // move player
 function movePlayer(dLat: number, dLng: number) {
-  playerLocation = leaflet.latLng(
+  const newLocation = leaflet.latLng(
     playerLocation.lat + dLat,
     playerLocation.lng + dLng,
   );
 
+  movePlayerDirect(newLocation);
+}
+
+//move player directly to specific location
+function movePlayerDirect(newLocation: leaflet.LatLng) {
+  playerLocation = newLocation;
+
+  movementHist.push(newLocation);
+
+  if (movementPolyline) {
+    movementPolyline.addLatLng(newLocation);
+  } else {
+    movementPolyline = leaflet.polyline(movementHist, { color: "red" }).addTo(
+      map,
+    );
+  }
+
   playerIcon.setLatLng(playerLocation);
   map.panTo(playerLocation);
   generateCaches();
+
+  saveGameState();
 }
 
-// ~------------------INITIALIZATION-------------~
+//geolocation functions
+function startGeolocation() {
+  if (navigator.geolocation) {
+    geoWatchID = navigator.geolocation.watchPosition((position) => {
+      const newLat = position.coords.latitude;
+      const newLng = position.coords.longitude;
+      const newLoc = leaflet.latLng(newLat, newLng);
+      movePlayerDirect(newLoc);
+    }, (error) => {
+      console.error("cant geolocate:", error);
+      alert("couldn't get geolocation.");
+    }, {
+      enableHighAccuracy: true,
+      maximumAge: 1000,
+      timeout: 10000,
+    });
+  } else {
+    alert("geolocation no working");
+  }
+}
+
+function stopGeolocation() {
+  if (geoWatchID !== null) {
+    navigator.geolocation.clearWatch(geoWatchID);
+    geoWatchID = null;
+  }
+}
+
+function toggleDPadVisibility(show: boolean) {
+  const dpadButtons = document.querySelectorAll(
+    "#moveNorth, #moveSouth, #moveEast, #moveWest",
+  );
+  dpadButtons.forEach((button) => {
+    (button as HTMLElement).style.display = show ? "block" : "none";
+  });
+}
+
+function resetGameState() {
+  stopGeolocation();
+
+  playerLocation = leaflet.latLng(36.9895, -122.0627777);
+
+  //clear movement hist
+  movementHist = [playerLocation];
+  if (movementPolyline) {
+    map.removeLayer(movementPolyline);
+    movementPolyline = null;
+  }
+
+  playerInv.length = 0;
+
+  cacheCoins.clear();
+
+  knownCells.clear();
+
+  cacheMarkers.forEach((marker) => {
+    map.removeLayer(marker);
+  });
+  cacheMarkers.clear();
+  visibleCacheKeys.clear();
+
+  playerIcon.setLatLng(playerLocation);
+
+  generateCaches();
+
+  updateInventoryDisplay();
+
+  localStorage.removeItem("geocoinGameState");
+}
+
+// ~---------------GAME SAVING-------------------~
+
+// Save game state to localStorage
+function saveGameState() {
+  const gameState = {
+    playerLocation: {
+      lat: playerLocation.lat,
+      lng: playerLocation.lng,
+    },
+    movementHist: movementHist.map((latlng) => ({
+      lat: latlng.lat,
+      lng: latlng.lng,
+    })),
+    playerInv: playerInv.map((coin) => ({ ...coin })),
+    cacheCoins: Array.from(cacheCoins.entries()),
+  };
+
+  localStorage.setItem("geocoinGameState", JSON.stringify(gameState));
+}
+
+// Load game state from localStorage
+function loadGameState() {
+  const savedState = localStorage.getItem("geocoinGameState");
+
+  if (savedState) {
+    const gameState = JSON.parse(savedState);
+
+    // Restore player location
+    playerLocation = leaflet.latLng(
+      gameState.playerLocation.lat,
+      gameState.playerLocation.lng,
+    );
+
+    // Restore movement history
+    movementHist = gameState.movementHist.map(
+      (loc: { lat: number; lng: number }) => leaflet.latLng(loc.lat, loc.lng),
+    );
+
+    if (movementHist.length > 0) {
+      movementPolyline = leaflet.polyline(movementHist, { color: "red" }).addTo(
+        map,
+      );
+    }
+
+    // Restore player inventory
+    playerInv.length = 0; // Clear current inventory
+    gameState.playerInv.forEach((coin: Coin) => {
+      playerInv.push(coin);
+    });
+
+    // Restore cache coins
+    cacheCoins.clear();
+    cacheCoins = new Map(gameState.cacheCoins);
+
+    updateInventoryDisplay();
+
+    // Refresh player icon and map position
+    playerIcon.setLatLng(playerLocation);
+    map.panTo(playerLocation);
+
+    generateCaches(); // Regenerate caches based on restored state
+  }
+}
+
+// ~--------------INITIALIZATION-----------------~
+loadGameState();
+
+if (movementHist.length === 0) {
+  movementHist.push(playerLocation);
+}
+
 generateCaches();
 
 // ~-------------------LISTENERS-----------------~
@@ -336,3 +526,28 @@ northButton.addEventListener("click", () => movePlayer(GRID_CELL_SIZE, 0));
 southButton.addEventListener("click", () => movePlayer(-GRID_CELL_SIZE, 0));
 eastButton.addEventListener("click", () => movePlayer(0, GRID_CELL_SIZE));
 westButton.addEventListener("click", () => movePlayer(0, -GRID_CELL_SIZE));
+
+// Geolocation and reset buttons
+const geoButton = document.getElementById("geoButton")!;
+const resetButton = document.getElementById("resetButton")!;
+
+geoButton.addEventListener("click", () => {
+  if (geoWatchID === null) {
+    startGeolocation();
+    geoButton.textContent = "🌐 (on)";
+    // Optionally hide direction buttons
+    toggleDPadVisibility(false);
+  } else {
+    stopGeolocation();
+    geoButton.textContent = "🌐";
+    // Show direction buttons
+    toggleDPadVisibility(true);
+  }
+});
+
+resetButton.addEventListener("click", () => {
+  const confirmed = confirm("Are you sure you want to reset the game state?");
+  if (confirmed) {
+    resetGameState();
+  }
+});
